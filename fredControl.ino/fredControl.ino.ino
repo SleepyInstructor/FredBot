@@ -52,6 +52,7 @@ class commandBuffer {
   public:
     commandBuffer(int bufferSize);
     ~commandBuffer();
+     int currentCommand;
 
     bool addCommand(char commandChar, word power, word duration) {
       Serial.println("Adding Command");
@@ -90,7 +91,7 @@ class commandBuffer {
     int numCommands;
     int maxCommands;
     command * buff;
-    int currentCommand;
+   
 
 };
 commandBuffer::commandBuffer(int bufferSize) {
@@ -265,9 +266,10 @@ void processProgram() {
     return;
   }
   if (!comBuf.endReached()) {
+    Serial.println("Program is live");
     if (currentTime > changeTime) {
       comBuf.advanceCommand();
-      if (!comBuf.endReached()) {
+     
         command currCom = comBuf.getCurCommand();
         Serial.println("Printing Command!");
         currCom.print();
@@ -290,11 +292,11 @@ void processProgram() {
           default : 
             setMotors(0, RELEASE, RELEASE);
         }
-      } else {
-        setMotors(0, RELEASE, RELEASE); //Stop the program when all instructions are finished
-      }
-    }
+    } 
+  }else if (currentTime > changeTime){
+    setMotors(0, RELEASE, RELEASE);
   }
+  
 }
 
 int msgCount = 0;
@@ -302,6 +304,7 @@ void loop() {
   // put your main code here, to run repeatedly:
   int wStatus = WiFi.status();  //get wifi status
   int incomingByte;
+  
   //WiFi lost of signal warning message.
   if (WiFi.status() != WL_CONNECTED && msgCount == 0) {
       Serial.println("WiFi signal lost, consider resetting.");
