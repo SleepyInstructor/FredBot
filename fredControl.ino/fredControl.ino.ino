@@ -299,16 +299,17 @@ void processProgram() {
   
 }
 
-int msgCount = 0;
 void loop() {
   // put your main code here, to run repeatedly:
   int wStatus = WiFi.status();  //get wifi status
   int incomingByte;
   
   //WiFi lost of signal warning message.
-  if (WiFi.status() != WL_CONNECTED && msgCount == 0) {
-      Serial.println("WiFi signal lost, consider resetting.");
-      msgCount += 1;  
+  if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi signal lost, attempting to reconnect.");
+      WiFi.disconnect();
+      connectToNet();
+     
   } 
   //Command processing, with time slices
   processProgram();
