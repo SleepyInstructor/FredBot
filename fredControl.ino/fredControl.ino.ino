@@ -1,3 +1,10 @@
+//FRED Robot
+//Langara Science Fair workshop project
+//Description: This is the source code for the arduino based
+//Lego robot for the Langara Science Fair
+//Interested parties are free to modify and use as the code as they see fit.
+//The original author does not guarantee the fitness of the code in any way.
+//Copyright 2017
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_MS_PWMServoDriver.h"
