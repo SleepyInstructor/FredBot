@@ -16,14 +16,16 @@
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *motor1 = AFMS.getMotor(1);
 Adafruit_DCMotor *motor2 = AFMS.getMotor(2);
-
+ 
 //WiFi related stuff
 char  net[] = "WiFiProject2";
 char pass[] = "FreeCoffee";  //sketchy, but what else are you going to do.
 char botName[] = "Fred001"; // rebot name, different for each bot.
+//char botName[] = "Giny";
+//char botName[] = "George";
+IPAddress ip(192, 168, 20, 45); 
 // source code nightmare ahead.
 char getCommand[] = "GET";
-IPAddress ip;
 WiFiServer server(80);  //Use port 80, the parameter is the port number
 
 //Pin related stuff
@@ -111,17 +113,32 @@ commandBuffer comBuf(500);
 //returns true if success, returns false otherwise
 //Will also output diagnostic messages to the serial port.
 bool connectToNet() {
+  WiFi.config(ip);
   int result = WiFi.begin(net, pass); //Assumes a WPA wifi network
   if (result == WL_CONNECTED) {
     Serial.println("Network connected.");
-    ip = WiFi.localIP();
-    Serial.println(ip);
+    IPAddress ipLocal = WiFi.localIP();
+    Serial.println(ipLocal);
     return true;
 
   } else {
     Serial.println("Error Network not found");
     return false;
   }
+}
+#define CMD 1 //Command string
+#define STA 2 //Request status
+#define UNK 0
+//Helper
+//End point detector, old school. Assuming 3 letter end points
+//Each endpoint corresponds to a different type of request.
+int detectEndPoint(char * endpointString){
+  if(strncmp("/cmd", endpointString, 4)==0){
+        return CMD; 
+  } else if(strncmp("/sta", endpointString, 4)==0){
+        return STA;
+  }
+  return UNK;
 }
 
 //setup
@@ -219,7 +236,7 @@ inline void parseCommands(char * buff) {
   }
 }
 //Requires 1Kb
-void parseClient( WiFiClient & client) {
+inline void parseClient( WiFiClient & client) {
   char buff[1024];
   int numChar = 0;
   while (client.available()) {
@@ -234,9 +251,15 @@ void parseClient( WiFiClient & client) {
         //Assume /cmd for now
         //need to add to check if it's /cmd, if so reset command list?
         //Newest program takes precedence.
-        
-        parseCommands(buff + 5);
-
+        int endPoint = detectEndPoint(buff+4);
+        if(endPoint == CMD){
+           comBuf.reset(); //Erase any existing commands, only 1 program at a time.
+           setMotors(0,RELEASE,RELEASE); //Stop the rover while receiving instructions.
+           parseCommands(buff + 5);
+           reportStatus(client);
+        } else if(endPoint == STA){
+            reportProgress(client);
+        }
       }
     } else { //still reading in a line
       buff[numChar] = c;
@@ -244,17 +267,41 @@ void parseClient( WiFiClient & client) {
     }
   }
 }
-void reportStatus( WiFiClient & client) {
-
+inline void reportStatus( WiFiClient & client) {
+  //Response needed to be crafted 
+  //To allow CORS support.
   client.println("HTTP/1.1 200 OK");
+  client.println("Access-Control-Allow-Origin: *");
   client.println("Content-Type: text/html");
   client.println("Connection: close");
+  client.println("");
   client.println("<!DOCTYPE HTML>");
   client.println("<html>");
-  client.println("Everything is okay!");
+  client.print("Commands Received:");
+  client.println(comBuf.length());
   client.println("</html>");
   return;
 }
+inline void reportProgress( WiFiClient & client) {
+  //Response needed to be crafted 
+  //To allow CORS support.
+  client.println("HTTP/1.1 200 OK");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println("Content-Type: text/html");
+  client.println("Connection: close");
+  client.println("");
+  client.println("<!DOCTYPE HTML>");
+  client.println("<html>");
+  client.print("Commands Received:");
+  client.println(comBuf.length());
+  client.print("Current Command:");
+  client.println(comBuf.currentCommand);
+  client.print("Program Ended:");
+  client.println(comBuf.endReached());
+  client.println("</html>");
+  return;
+}
+
 unsigned long changeTime = 0;
 void processProgram() {
 
@@ -266,7 +313,6 @@ void processProgram() {
     return;
   }
   if (!comBuf.endReached()) {
-    Serial.println("Program is live");
     if (currentTime > changeTime) {
       comBuf.advanceCommand();
      
@@ -295,10 +341,8 @@ void processProgram() {
     } 
   }else if (currentTime > changeTime){
     setMotors(0, RELEASE, RELEASE);
-  }
-  
+  } 
 }
-
 void loop() {
   // put your main code here, to run repeatedly:
   int wStatus = WiFi.status();  //get wifi status
@@ -320,7 +364,6 @@ void loop() {
     //This is going to be a REST API
     Serial.println("Responding to Client");
     parseClient(client);
-    reportStatus(client);
     client.stop(); //We get here from the break statement in the HTTP response
     Serial.println("Client disconnected");
   }//end of if statement
