@@ -243,7 +243,7 @@ inline void parseCommands(char * buff) {
   }
 }
 //Requires 1Kb
-//
+//parse a incoming http request. We only hand GET for now.
 inline void parseClient( WiFiClient & client) {
   char buff[1024];
   int numChar = 0;
@@ -275,6 +275,7 @@ inline void parseClient( WiFiClient & client) {
     }
   }
 }
+//reports the number of commands received from a command string
 inline void reportStatus( WiFiClient & client) {
   //Response needed to be crafted 
   //To allow CORS support.
@@ -287,6 +288,7 @@ inline void reportStatus( WiFiClient & client) {
   client.println(comBuf.length());
   return;
 }
+//Report what the robot is current doing.
 inline void reportProgress( WiFiClient & client) {
   //Response needed to be crafted 
   //To allow CORS support.
