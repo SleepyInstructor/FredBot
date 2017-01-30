@@ -28,7 +28,7 @@ IPAddress ip(192, 168, 20, 45);
 char getCommand[] = "GET";
 WiFiServer server(80);  //Use port 80, the parameter is the port number
 
-//Pin related stuff
+//Pin related bumper emergency stop
 int buttonPin = 3;
 
 int incomingByte;
@@ -55,7 +55,6 @@ class commandBuffer {
     commandBuffer(int bufferSize);
     ~commandBuffer();
      int currentCommand;
-
     bool addCommand(char commandChar, word power, word duration) {
       Serial.println("Adding Command");
       if (maxCommands > numCommands) {
@@ -106,10 +105,10 @@ commandBuffer::~commandBuffer() {
   delete[] buff;
   buff = NULL;
 }
-//Fixed buffer to hold the commands
+//Fixed size buffer to hold the commands
 //only one set of commands at a time for now.
 commandBuffer comBuf(500);
-//Used to connect to the WiFi network
+//Helper Used to connect to the WiFi network
 //returns true if success, returns false otherwise
 //Will also output diagnostic messages to the serial port.
 bool connectToNet() {
@@ -126,12 +125,13 @@ bool connectToNet() {
     return false;
   }
 }
-#define CMD 1 //Command string
-#define STA 2 //Request status
-#define UNK 0
+
 //Helper
 //End point detector, old school. Assuming 3 letter end points
 //Each endpoint corresponds to a different type of request.
+#define CMD 1 //Command string
+#define STA 2 //Request status
+#define UNK 0 //Unknown request
 int detectEndPoint(char * endpointString){
   if(strncmp("/cmd", endpointString, 4)==0){
         return CMD; 
@@ -141,11 +141,12 @@ int detectEndPoint(char * endpointString){
   return UNK;
 }
 
-//setup
+//Event handler for the emergency stop pin.
 volatile boolean eStop = false;
 void emergencyStop(){
    eStop = true;
 }
+//setup
 void setup() {
   //Set the button to input mode as well as attach interrupt handler
   pinMode(buttonPin, INPUT_PULLUP);
@@ -172,6 +173,7 @@ void setMotors(int targetSpeed, int targetDirectionR, int targetDirectionL) {
   motor2->run(targetDirectionL);
   motor2->setSpeed(targetSpeed);
 }
+//Help function to indentify the beginning of a string
 inline boolean startsWith(char * buff, char *refWord) {
 
   int result = strncmp(buff, refWord, 3);
@@ -184,7 +186,7 @@ inline void stripHTTP(char * buff) {
     *firstSpace = 0;
   }
 }
-//Parse the individual commands to a command array
+//Determins if a Character represents a command.
 inline boolean isCommand(char com){
   switch(com){
     case 'F':
@@ -197,6 +199,11 @@ inline boolean isCommand(char com){
     default : return false;
   }
 }
+//Parses a commnad
+//Format FP:D;
+//Command letter
+//Power level, between 1 and 255
+//Duration in milliseconds.
 inline void parseCommands(char * buff) {
   char command;
   word power; //In percent
@@ -236,6 +243,7 @@ inline void parseCommands(char * buff) {
   }
 }
 //Requires 1Kb
+//
 inline void parseClient( WiFiClient & client) {
   char buff[1024];
   int numChar = 0;
@@ -272,14 +280,11 @@ inline void reportStatus( WiFiClient & client) {
   //To allow CORS support.
   client.println("HTTP/1.1 200 OK");
   client.println("Access-Control-Allow-Origin: *");
-  client.println("Content-Type: text/html");
+  client.println("Content-Type: text/plain");
   client.println("Connection: close");
   client.println("");
-  client.println("<!DOCTYPE HTML>");
-  client.println("<html>");
   client.print("Commands Received:");
   client.println(comBuf.length());
-  client.println("</html>");
   return;
 }
 inline void reportProgress( WiFiClient & client) {
@@ -287,18 +292,15 @@ inline void reportProgress( WiFiClient & client) {
   //To allow CORS support.
   client.println("HTTP/1.1 200 OK");
   client.println("Access-Control-Allow-Origin: *");
-  client.println("Content-Type: text/html");
+  client.println("Content-Type: text/plain");
   client.println("Connection: close");
   client.println("");
-  client.println("<!DOCTYPE HTML>");
-  client.println("<html>");
   client.print("Commands Received:");
   client.println(comBuf.length());
   client.print("Current Command:");
   client.println(comBuf.currentCommand);
   client.print("Program Ended:");
-  client.println(comBuf.endReached());
-  client.println("</html>");
+  client.println(comBuf.endReached()==0 ? "false" : "true");
   return;
 }
 
