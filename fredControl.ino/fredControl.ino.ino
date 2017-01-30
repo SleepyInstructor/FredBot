@@ -267,6 +267,8 @@ inline void parseClient( WiFiClient & client) {
            reportStatus(client);
         } else if(endPoint == STA){
             reportProgress(client);
+        } else {
+          reportNotFound(client);
         }
       }
     } else { //still reading in a line
@@ -303,6 +305,19 @@ inline void reportProgress( WiFiClient & client) {
   client.println(comBuf.currentCommand);
   client.print("Program Ended:");
   client.println(comBuf.endReached()==0 ? "false" : "true");
+  return;
+}
+//if the endpoint is unknown
+inline void reportNotFound( WiFiClient & client) {
+  //Response needed to be crafted 
+  //To allow CORS support.
+  client.println("HTTP/1.1 404 Not Found");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println("Content-Type: text/plain");
+  client.println("Connection: close");
+  client.println("");
+  client.println("endpoint not found");
+
   return;
 }
 
