@@ -16,14 +16,16 @@
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *motor1 = AFMS.getMotor(1);
 Adafruit_DCMotor *motor2 = AFMS.getMotor(2);
- 
+
+char  net[] = "Project";
+char pass[] = "catbus12";  //sketchy, but what else are you going to do.
 //WiFi related stuff
-char  net[] = "WiFiProject2";
-char pass[] = "FreeCoffee";  //sketchy, but what else are you going to do.
+//char  net[] = "WiFiProject2";
+//char pass[] = "FreeCoffee";  //sketchy, but what else are you going to do.
 char botName[] = "Fred001"; // rebot name, different for each bot.
 //char botName[] = "Giny";
 //char botName[] = "George";
-IPAddress ip(192, 168, 20, 45); 
+IPAddress ip(192, 168, 0, 150); 
 // source code nightmare ahead.
 char getCommand[] = "GET";
 WiFiServer server(80);  //Use port 80, the parameter is the port number
@@ -305,6 +307,8 @@ inline void reportProgress( WiFiClient & client) {
   client.println(comBuf.currentCommand);
   client.print("Program Ended:");
   client.println(comBuf.endReached()==0 ? "false" : "true");
+  client.print("Emergency Stop:");
+  client.println(eStop==false ? "false" : "true");
   return;
 }
 //if the endpoint is unknown
@@ -325,9 +329,10 @@ unsigned long changeTime = 0;
 void processProgram() {
 
   unsigned long currentTime = millis();
-  if(eStop && digitalRead(buttonPin)==LOW){
+  if(eStop){
     eStop = false;
     comBuf.reset();
+    setMotors(0,RELEASE,RELEASE);
     Serial.println("Emergency Stop hit, please send new program");
     return;
   }
@@ -387,3 +392,4 @@ void loop() {
     Serial.println("Client disconnected");
   }//end of if statement
 }
+
